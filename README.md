@@ -3,7 +3,7 @@
 > 화자 분리 기반 영어→한국어 실시간 음성 번역기
 > **소프트웨어공학 "프로세스에 입각한 바이브코딩" 과제 결과물**
 
-[![Status](https://img.shields.io/badge/status-Day%202%20Complete-brightgreen)]()
+[![Status](https://img.shields.io/badge/status-Day%203%20Complete%20(Phase%202%20Done)-brightgreen)]()
 [![Process](https://img.shields.io/badge/process-Hybrid%20Waterfall%2BSpiral-green)]()
 [![AI](https://img.shields.io/badge/AI-Claude%20(Cowork)-orange)]()
 
@@ -76,17 +76,16 @@ realtime-voice-translator/
 | 리스크 식별 (6건) | Charter §8 | ✅ |
 | 14일 일정 / 마일스톤 (M1~M7) | Charter §6.2 | ✅ |
 
-### 🟦 Phase 2: Requirements (Day 2-3, 2026-05-25 ~ 26) — **Day 2 완료 / Day 3 진행 예정**
+### ✅ Phase 2: Requirements (Day 2-3, 2026-05-25 ~ 26) — **완료**
 
 | 산출물 | 위치 | 상태 |
 |---|---|---|
 | 사용자 시나리오 (자기 인터뷰, 5H1W) | [`docs/requirements/USER_SCENARIOS.md`](docs/requirements/USER_SCENARIOS.md) | ✅ |
-| SRS v0.1 (FR 10 + NFR 8 + 제약 5) | [`docs/requirements/SRS.md`](docs/requirements/SRS.md) | ✅ |
-| 추적성 매트릭스 (시나리오 ↔ 요구) | SRS §6 | ✅ |
-| Day 2 토의 로그 | [`docs/process/DISCUSSION_LOG.md`](docs/process/DISCUSSION_LOG.md) | ✅ |
-| 유스케이스 다이어그램 + 명세 | `docs/requirements/usecases/` | 🔜 Day 3 |
-| 클래스 다이어그램 초안 | `docs/design/` | 🔜 Day 3 |
-| SRS v1.0 (Open Issues 일부 해소) | SRS.md | 🔜 Day 3 |
+| SRS v1.0 (FR 10 + NFR 8 + 제약 5 + 4축 추적성) | [`docs/requirements/SRS.md`](docs/requirements/SRS.md) | ✅ |
+| 유스케이스 다이어그램 + 명세 (UC 7건) | [`docs/requirements/USECASES.md`](docs/requirements/USECASES.md) | ✅ |
+| 도메인 모델 — 클래스 + 시퀀스 다이어그램 | [`docs/requirements/DOMAIN_MODEL.md`](docs/requirements/DOMAIN_MODEL.md) | ✅ |
+| 일관성 점검 (강의록 05 §5.6) | DOMAIN_MODEL §4, SRS §6.3 | ✅ |
+| Day 2-3 토의 로그 | [`docs/process/DISCUSSION_LOG.md`](docs/process/DISCUSSION_LOG.md) | ✅ |
 
 ### 🔜 다음: Phase 3 Design (Day 4-5, 2026-05-27 ~ 28)
 
