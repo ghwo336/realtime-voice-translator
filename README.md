@@ -3,7 +3,7 @@
 > 화자 분리 기반 영어→한국어 실시간 음성 번역기
 > **소프트웨어공학 "프로세스에 입각한 바이브코딩" 과제 결과물**
 
-[![Status](https://img.shields.io/badge/status-Day%203%20Complete%20(Phase%202%20Done)-brightgreen)]()
+[![Status](https://img.shields.io/badge/status-Day%204%20Complete%20(Phase%203%20InProgress)-blue)]()
 [![Process](https://img.shields.io/badge/process-Hybrid%20Waterfall%2BSpiral-green)]()
 [![AI](https://img.shields.io/badge/AI-Claude%20(Cowork)-orange)]()
 
@@ -87,18 +87,45 @@ realtime-voice-translator/
 | 일관성 점검 (강의록 05 §5.6) | DOMAIN_MODEL §4, SRS §6.3 | ✅ |
 | Day 2-3 토의 로그 | [`docs/process/DISCUSSION_LOG.md`](docs/process/DISCUSSION_LOG.md) | ✅ |
 
-### 🔜 다음: Phase 3 Design (Day 4-5, 2026-05-27 ~ 28)
+### 🟦 Phase 3: Design (Day 4-5, 2026-05-27 ~ 28) — **Day 4 완료 / Day 5 예정**
 
-- 강의록 06_설계원리, 07_아키텍처와 패턴, 08_UI 설계 분석
-- 아키텍처 다이어그램 + 컴포넌트 정의
-- 기술 스택 최종 결정 (Open Issues O-01 ~ O-04 해소)
-- UI 와이어프레임
+| 산출물 | 위치 | 상태 |
+|---|---|---|
+| SDD v0.1 — 아키텍처/모듈/동시성/패턴/스택 | [`docs/design/SDD.md`](docs/design/SDD.md) | ✅ |
+| 아키텍처 다이어그램 (Mermaid 컴포넌트뷰) | SDD §2.2 | ✅ |
+| 기술 스택 확정 (Open Issues O-01~O-04 closed) | SDD §6 | ✅ |
+| 디자인 패턴 6종 적용 + SOLID 점검 | SDD §5 | ✅ |
+| 동시성/백프레셔 설계 | SDD §4 | ✅ |
+| SDD↔SRS 추적성 매트릭스 | SDD §8 | ✅ |
+| UI 와이어프레임 + 컴포넌트 명세 | `docs/design/UI.md` | 🔜 Day 5 |
+| SDD v1.0 (UI 통합) | SDD.md | 🔜 Day 5 |
+
+### 🔜 다음: Phase 4 Construction (Day 6-10, 2026-05-29 ~ 06-02)
+
+- Sprint 1: STT + 번역 PoC
+- Sprint 2: 화자 분리 + UI 통합
 
 전체 일정은 [`docs/process/PROJECT_CHARTER.md`](docs/process/PROJECT_CHARTER.md) §6.2 참조.
 
 ---
 
-## 5. 프로세스 적용 증빙 (채점 가이드)
+## 5. 기술 스택 (확정)
+
+| 영역 | 기술 |
+|---|---|
+| 언어 | Python 3.11+ |
+| STT | faster-whisper (로컬, Metal 가속) |
+| 번역 | Claude API (haiku-4-5) |
+| 화자 분리 | pyannote.audio 3.1 + 에너지 fallback |
+| UI | PySide6 (Qt for Python) |
+| 동시성 | asyncio + qasync |
+| 오디오 | sounddevice + silero-vad |
+
+자세한 근거는 [`docs/design/SDD.md`](docs/design/SDD.md) §6 참조.
+
+---
+
+## 6. 프로세스 적용 증빙 (채점 가이드)
 
 본 저장소는 다음 방식으로 "지속적 토의"를 증빙한다.
 
@@ -110,7 +137,7 @@ realtime-voice-translator/
 
 ---
 
-## 6. 빌드 및 실행
+## 7. 빌드 및 실행
 
 > Day 5 설계 완료 후 본 섹션 갱신 예정. 현재는 placeholder.
 
@@ -124,6 +151,6 @@ python -m rvt
 
 ---
 
-## 7. 라이선스
+## 8. 라이선스
 
 학내 과제용 비공개 학습 목적. 외부 모델/라이브러리는 각자의 라이선스를 따른다.

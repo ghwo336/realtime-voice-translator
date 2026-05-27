@@ -168,6 +168,131 @@
 
 ---
 
+## 2026-05-27 (Day 4, 수) — 설계 (Phase 3 시작) ✅ 완료
+
+### 토의 주제 1. 아키텍처 스타일 선정
+
+어제 만든 도메인 모델(`DOMAIN_MODEL.md`)을 다시 보니 데이터 흐름이 명확한 **단방향 파이프라인**이었다.
+
+```
+오디오 → 발화 분리 → 화자 분리 → STT → 번역 → UI
+```
+
+이 흐름을 강의록 07 §7.2의 7개 아키텍처 스타일과 매칭해봤다.
+
+| 스타일 | 본 프로젝트 적합도 판단 |
+|---|---|
+| 클라이언트-서버 | ❌ 단일 데스크탑 앱, 서버 없음 |
+| 계층형 | △ UI/Domain/Infra 계층 분리 정도만 |
+| 이벤트 기반 | ◯ 오디오 청크 = 이벤트, 잘 맞음 |
+| **파이프-필터** | ◎ **단방향 변환 흐름과 정확히 일치** |
+| MVC | ◯ UI 분리에 적합 |
+| 데이터 중심 / P2P | ❌ 부적합 |
+
+코어 처리는 파이프-필터가 자명했다. 강의록 07 슬라이드 10에 "단점: 자원의 낭비"가 있어 잠시 걸렸지만, 본 프로젝트의 청크 단위가 100ms로 작고 메모리 압박이 크지 않다는 점에서 단점이 미미하다고 판단.
+
+UI 분리는 강의록 §MVC "사용자 인터페이스로부터 비즈니스 로직과 데이터를 분리"가 본 프로젝트의 NFR-008(프라이버시) — 코어가 외부 호출을 격리한다 — 와 정확히 맞는다.
+
+**결론**: **파이프-필터(코어) + 이벤트 기반(컴포넌트 통신) + MVC(UI) 하이브리드**.
+**근거**: NFR-001(지연 ≤ 3초)의 핵심은 병렬성. 파이프-필터의 강의록 명시 장점("단순성/병렬성/재사용")이 이 요구와 직결됨.
+
+### 토의 주제 2. 기술 스택 — Open Issues O-01 ~ O-04 일괄 결정
+
+본 프로젝트의 제약을 다시 정리:
+- Mac (Apple Silicon) 환경
+- 1인 / 14일
+- API 예산 ≤ ₩10,000
+- 회의 내용 = 민감 (프라이버시 중요, NFR-008)
+- Charter C-04: "Claude만 사용"
+
+이 제약 위에서 각 Open Issue를 결정했다.
+
+| ID | 결정 | 결정 근거 |
+|---|---|---|
+| **O-01 STT** | `faster-whisper` (로컬, medium/large) | Apple Silicon Metal 가속 가능 → 비용 0, 오프라인, NFR-008 프라이버시 충족. `faster-whisper`는 CTranslate2 기반으로 표준 Whisper보다 4-8배 빠름 |
+| **O-02 번역** | Claude API (haiku-4-5) | Charter C-04와 정합. LLM이 회의 맥락 이해에서 traditional MT(OPUS-MT/M2M100)보다 우수. haiku-4-5는 비용·속도 균형 |
+| **O-03 화자분리** | pyannote.audio 3.1 + 에너지 기반 fallback | Risk R2에서 이미 fallback 경로 식별해둠. 정확도 우선 pyannote, 실패 시 단순 에너지 기반 |
+| **O-04 UI** | PySide6 | Mac 네이티브 룩, 무엇보다 **Qt의 signal/slot이 강의록 07 §옵서버 패턴 그대로** → 패턴 구현이 자연스러움 |
+
+→ SRS §8 Open Issues 4건 모두 closed 처리.
+
+### 토의 주제 3. 동시성 모델 — NFR-001로부터 역산
+
+NFR-001(지연 ≤ 3초)을 충족하려면 파이프라인 각 단계가 **순차적으로 막혀선 안 됨**. 동시성 필수.
+
+후보 정리 + 평가:
+
+| 모델 | 평가 |
+|---|---|
+| `threading` | 콜백 헬, 디버깅 난해. ❌ |
+| `multiprocessing` | IPC 비용, Qt GUI 통합 어려움. ❌ |
+| `asyncio` 단독 | I/O 친화, 그러나 CPU bound 작업(Whisper) 처리 까다로움 |
+| **`asyncio` + `run_in_executor()`** | ✅ I/O는 코루틴, CPU bound는 executor 격리 |
+
+**결정**: **`asyncio` 메인 루프 + `run_in_executor()`로 Whisper 격리**, PySide6와는 `qasync`로 통합.
+
+**백프레셔 설계**: 큐 무한 확장 방지 위해 `asyncio.Queue(maxsize=N)` 사용. STT가 못 따라가면 producer가 자연스럽게 `await`로 막힘 → 자동 백프레셔.
+
+### 토의 주제 4. 디자인 패턴 적용
+
+도메인 모델(인터페이스 5개, 상태 enum, 이벤트 기반 통신)을 강의록 07 §7.3 패턴 카탈로그와 매칭.
+
+| 모델 요소 | 적용 패턴 | 강의록 |
+|---|---|---|
+| `STTEngine`/`Translator`/`Diarizer` 인터페이스 + 구체 구현 교체 | **전략(Strategy)** | 07 §7.3 |
+| 엔진 인스턴스 생성 비용 큼, 한 곳에서 결정 | **팩토리 메소드** | 07 §7.3 |
+| OS/SDK 인터페이스를 도메인 인터페이스에 맞춤 | **어댑터** | 07 §7.3 |
+| `SessionState` enum + 상태별 허용 동작 다름 | **상태(State)** | 07 §7.3 |
+| `Session.lineAdded` → 다중 구독자(UI, Storage) | **옵서버** | 07 §7.3 |
+| 모델 로딩 비용 큰 객체 단일 인스턴스 | **싱글톤** | 07 §7.3 |
+
+6개 패턴 자연 매칭. 모두 SDD §5에 정식 기재.
+
+**lessons learned 후보**: 바이브코딩에서 디자인 패턴을 SDD에 명시해두면 후속 코드 생성 일관성이 크게 향상된다 — 패턴 이름 자체가 의사소통의 공용어 역할.
+
+### 토의 주제 5. SOLID 적용 점검 (강의록 06 §6.4)
+
+| 원리 | 본 설계에서의 만족 |
+|---|---|
+| SRP | 각 filter 모듈이 단계 하나만 — Capture/Segment/Diarize/STT/Translate/Assemble |
+| OCP | 새 STT 엔진 추가 시 `STTEngine` 구현체만 추가, 코어 무수정 |
+| LSP | 인터페이스 계약(`transcribe(utt) → str`)을 모든 구현체가 동일하게 만족 |
+| ISP | 외부 시스템마다 인터페이스 분리 (STT/Translator/Diarizer/LogStorage 별도) |
+| DIP | `Session`이 구체 라이브러리(`faster_whisper`) 직접 import 없이 `STTEngine` 추상에 의존 |
+
+DIP가 가장 핵심. 향후 라이브러리 교체 시 `core/` 한 줄도 안 바뀜 — Open Issues가 다시 열리더라도 코어 재작성 없이 대응 가능.
+
+### 토의 주제 6. 응집도·결합도 자기 평가 (강의록 06 §6.3)
+
+| 모듈 | 응집도 | 결합도 |
+|---|---|---|
+| `core/session.py` | 기능적 (세션 책임 단일) | 데이터 (DTO만 전달) |
+| `core/stt_engine.py` | 기능적 | 데이터 |
+| `core/translator.py` | 기능적 | 데이터 |
+| `ui/main_view.py` | 교환적 (UI 요소 그룹) | 데이터 (signal/slot DTO) |
+
+전 모듈이 **기능적 응집 + 데이터 결합** (강의록 06 최적 등급) 달성.
+
+추가 규칙: `core/`에서 PySide6 import 금지 — 코딩 표준(강의록 09)에서 정식화 예정. 이로써 코어와 UI의 의존성 역전을 코드 레벨에서 강제.
+
+### 오늘의 산출물
+- [x] SDD v0.1 (9개 섹션 — 아키텍처/모듈/동시성/패턴/스택/할당/추적성)
+- [x] SRS Open Issues 4건 closed
+- [x] DISCUSSION_LOG.md Day 4 엔트리
+- [x] README.md Phase 3 상태 + §5 기술 스택 섹션 추가
+
+### 발견된 리스크 / 변경
+- **R2 fallback 경로 SDD §6에 명시**: pyannote 실패 시 에너지 기반 단순 분리로 자동 전환.
+- **신규 상태 DEGRADED**: 컴포넌트 3회 연속 실패 시. 상태 다이어그램 보강 → Day 5에서.
+
+### 다음 액션 (Day 5)
+1. 강의록 08_UI 설계 분석
+2. UI 와이어프레임 + 컴포넌트 명세 (MainView, SubtitleArea, LevelMeter, Toolbar)
+3. 사용자 인터랙션 상태도 (DEGRADED 포함)
+4. SDD v0.1 → v1.0 승급
+
+---
+
 <!-- 이후 일자는 매일 아래 템플릿으로 추가 -->
 
 ## 템플릿 (복사해서 사용)
